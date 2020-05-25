@@ -1,0 +1,198 @@
+#%% 1.加载库
+
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.io as sio
+from scipy.optimize import minimize
+
+#%% 2.载入数据
+
+data=sio.loadmat('ex4data1.mat')
+data
+x_=data['X']
+y_=data['y']
+
+#%% 
+
+x_.shape,y_.shape
+
+#%%
+
+x=np.insert(x_,0,values=1,axis=1)
+x.shape
+
+#%% 
+
+# 3.对y进行one-hot编码
+
+#原因在于沿用了逻辑回归不可分1\0的分类设定和代价函数,
+#为此在该神经网络里应当对y进行1\0处理.
+def one_hot(y_):
+    cost1=[]
+    for i in y_: # 1-10,5000次
+        temp=np.zeros(10)
+        temp[i-1]=1
+        cost1.append(temp) # 数组追加函数,将得到的temp分别放入y[]
+    return np.array(cost1)  # 数组转矩阵函数
+
+#%%
+
+y=one_hot(y_)
+y.shape
+
+#%% 
+
+# 4.t1,t2数据载入
+
+t=sio.loadmat('ex4weights.mat')  # 载入数据
+t.keys() # 通过字典查看到两个key值,Theta1,Theta2
+
+#%%
+
+t1=t['Theta1']  # 输入层到隐藏层的theta
+t2=t['Theta2']  # 隐藏层到输出层的theta
+t1.shape,t2.shape
+
+#%% 5.序列化:目的在于使用高级优化算法便于计算,降维
+
+def s(a,b):
+    return np.append(a.flatten(),b.flatten())
+
+#%%
+
+# 设定t_t=序列化后的数据值1个
+ts=s(t1,t2)
+ts.shape
+
+#%% 6.解序列化
+
+# 还原数据,及格式.升维
+# ts表示解序列化后的2个theta值
+def d(ts):
+    t1=ts[:25*401].reshape(25,401)
+    t2=ts[25*401:].reshape(10,26)
+    return t1,t2
+
+#%%
+
+t1,t2=d(ts)
+t1.shape,t2.shape
+
+#%% 7.激活函数
+
+def sigmoid(z):
+    return 1/(1+np.exp(-z))
+
+#%% 8.向前传播
+
+# 前向传播函数
+def togo(ts,x):
+    t1,t2=d(ts)
+    a1=x
+    z1=a1@t1.T
+    a2=sigmoid(z1)
+    a2=np.insert(a2,0,values=1,axis=1)
+    z2=a2@t2.T
+    a3=sigmoid(z2)
+    return a1,z1,a2,z2,a3
+
+#%% 9.1 正向传播(1):不带正则化的损失函数
+
+def cost(ts,x,y):
+    a1,z1,a2,z2,a3=togo(ts,x)
+    j=-np.sum(y*np.log(a3)+(1-y)*np.log(1-a3))/len(x)
+       # 不带正则化的损失函数
+    return j
+
+#%%
+
+cost(ts,x,y) 
+
+#%%  
+
+# 9.2 正向传播(2):带正则化的损失函数
+def cost_lr(ts,x,y,lr):
+    sum1=np.sum(np.power(t1[:,1:],2))
+    sum2=np.sum(np.power(t2[:,1:],2))
+    reg=(sum1+sum2)*lr/(2*len(x))
+    return  reg+cost(ts,x,y)
+
+#%%
+
+lr=1
+cost_lr(ts,x,y,lr)
+
+#%% 10.1 反向传播(1)---不带正则化,偏神经元(第一列)不做梯度
+
+def sigmoid_back(z):
+    return sigmoid(z)*(1-sigmoid(z))
+
+#%%
+
+def G_back(ts,x,y):
+    t1,t2=d(ts)
+    a1,z1,a2,z2,a3=togo(ts,x)
+    d3=a3-y
+    d2=d3@t2[:,1:]*sigmoid_back(z1)
+    
+    D2=(d3.T @ a2)/len(x)
+    D1=(d2.T @ a1)/len(x)
+    
+    return s(D1,D2)
+   
+
+#%% 10.2 反向传播(2)带正则化梯度
+
+def G_backlr(ts,x,y,lr):
+    D=G_back(ts,x,y)
+    D1,D2=d(D)
+    t1,t2=d(ts)
+    D1[:,1:]=D1[:,1:]+t1[:,1:]*lr/len(x)
+    D2[:,1:]=D2[:,1:]+t2[:,1:]*lr/len(x)
+    return s(D1,D2)
+
+#%% 11.1 神经网络优化(1)不带正则化参数
+
+from scipy.optimize import minimize
+def high(x,y):
+    init_t=np.random.uniform(-0.5,0.5,10285)
+    res=minimize(fun=cost,
+            x0=init_t,
+            args=(x,y),
+            method='TNC',
+            jac=G_back,
+            options={'maxiter':300})
+    
+    return res
+
+#%%
+
+res=high(x,y)
+
+#%%
+
+res
+
+#%% 12.acc?
+
+
+
+#%% 13.隐藏层可视化?
+
+def plot_hidden_layer(t):
+    t1,_=d(t)
+    hidden=t1[:,1:] # 25,400
+    fig,ax=plt.subplots(5,5,figsize=(8,8),sharex=True,sharey=True
+    for r in range(5):
+        for c in range(5):
+            
+            ax[r,c].imshow(hidden[5*r+c].reshape(20,20).T,cmap='gray_r')
+    
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+#%%
+
+plot_hidden_layer(res.x)
+
