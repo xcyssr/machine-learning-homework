@@ -1,0 +1,108 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# 导入数据
+data=pd.read_csv("E:\pythonrealize\ex2data1.txt",names=['1','2','A'])
+data.head()
+# path='ex2data1.txt'
+# data=pd.read_csv(path,names['1','2','A'])
+# data.head()
+
+fig,ax=plt.subplots() # 创建绘图纸
+ax.scatter(data[data['A']==0]['1'],data[data['A']==0]['2'],c='b',marker='x',label='y=0')
+ax.scatter(data[data['A']==1]['1'],data[data['A']==1]['2'],c='r',marker='o',label='y=1')
+# 画图(x(data(行列)),y(data(行列)))
+ax.legend()
+# 图例的位置而已
+ax.set(xlabel='1',ylabel='2')
+# 坐标轴标题
+plt.show()
+
+def fix_data(data):
+    data.insert(0,'ones',1) # 插入一列 1,即常数项b
+    X_=data.iloc[:,0:-1] # 切第1,2列
+    X=X_.values # 转值换成数组的格式
+    
+    y_=data.iloc[:,-1]
+    y=y_.values.reshape(len(y_),1)
+    # 从数据中切出最后一列,因为只剩最后一列所以为数组,
+    # 数值->数组格式并.reshape(y的长度,值)数组->矩阵
+    
+    return X,y
+
+X,y=fix_data(data)
+X.shape
+#查看X处理结果
+
+y.shape
+# 查看y处理结果
+
+# +++逻辑回归多了一个激活函数,代价函数稍有变化
+def sigmoid(z):
+    return 1/(1+np.exp(-z)) # 定义了逻辑回归里的sigmoid函数=g
+
+def costFunction(X,y,theta):
+    hx=sigmoid(X@theta)
+    first=y*np.log(hx)
+    second=(1-y)*np.log(1-hx)
+    
+    return -np.sum(first+second)/len(X)
+
+
+theta=np.zeros((3,1))
+theta.shape
+# 初始化theat,theat=全0元素的3×1的向量
+# 为梯度下降函数做准备,因为开始切data时,X为100×3的矩阵,y为100个元素(后经过.reshape转换成100×1的矩阵),
+# 因此100×3 * 3×1 = 100 ×1 的矩阵,梯度下降做减法时不会出错
+c=costFunction(X,y,theta)
+# 求一次原数据的代价函数值
+print(c)
+
+
+#逻辑回归梯度下降
+def G(X,y,theta,alpha,it):
+    costs=[ ] # 记录每一次cost值,方便观测
+    for i in range(it):
+        hx=sigmoid(X@theta)
+        theta=theta-(alpha/len(X))*(X.T@(hx-y))
+        # 梯度下降向量化就是上面的公式
+        cost=costFunction(X,y,theta)
+        # 每次更新完一次theta值就计算一次代价函数
+        costs.append(cost)
+        # 将每次更新的代价函数的值存入上面的名为costs的数组中
+
+        if i % 1000 == 0:
+            print(cost)
+    return theta,costs
+
+
+# 梯度下降后的结果
+alpha=0.004
+it=200000
+theta,costs=G(X,y,theta,alpha,it)
+
+print(theta)
+
+# 决策边界即hx=0的情况,
+# 即假设函数为hx=theta0 + theta x1 + theta2x2=0
+# x2=-theta0/theat2 - (theat1/theta2)x1
+# 即x1=k,x2=y
+b=-theta[0,0]/theta[2,0] 
+k=-theta[1,0]/theta[2,0]
+
+x=np.linspace(20,100,100)  # 20~100平分100个点并划线
+f=b+k*x
+
+#先划原始数据散点图
+fig,ax=plt.subplots()
+ax.scatter(data[data['A']==0]['1'],data[data['A']==0]['2'],c='b',marker='x',label='y=0')
+ax.scatter(data[data['A']==1]['1'],data[data['A']==1]['2'],c='r',marker='o',label='y=1')
+ax.legend()
+# 画图(x(data(行列)),y(data(行列)))
+
+
+ax.set(xlabel='1',ylabel='2')
+ax.plot(x,f,c='g')
+
+plt.show()
