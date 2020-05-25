@@ -1,0 +1,163 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+data=pd.read_csv("E:\pythonrealize\ex2data2.txt",names=['1','2','a'])
+data.head()
+
+# path='ex2data2.txt'
+# data=pd.read_csv(path,names['Test1','Test2','A'])
+# data.head()
+
+
+#%%
+
+fig,ax=plt.subplots()
+ax.scatter(data[data['a']==0]['1'],data[data['a']==0]['2'],c='b',marker='x',label='y=0')
+ax.scatter(data[data['a']==1]['1'],data[data['a']==1]['2'],c='r',marker='o',label='y=1')
+ax.legend()
+plt.show()
+
+
+#%%
+
+#+++逻辑回归线性不可分-特征映射,双1列,2列的特征映射
+def feature_mapping(x1,x2,power):# 求1和2的组合映射
+    # 新函数,传入3个参数,即求幂次不大于power的x1,x2组合
+    data={} # 设一个数组储存循环后的量
+    for i in np.arange(power+1): # 外循环,x1的幂次,假设power=2,则np.arange=[0,1,2,3]
+        for j in np.arange(i+1): # 内循环,x2的幂次
+            data['F{}{}'.format(i-j,j)]=np.power(x1,i-j)*np.power(x2,j)
+    return pd.DataFrame(data)   # 将循环后的量转换成DataFrame格式,以便存入开始设立的数组
+
+#%%
+
+# 特征映射取6次方
+x1=data['1']
+x2=data['2']
+data2=feature_mapping(x1,x2,6)
+
+#%%
+
+#查看特征映射值
+data2.head()
+
+
+#%%
+
+# 对特征映射后的数据处理
+x=data2.values
+x.shape
+
+#%%
+
+y=data.iloc[:,-1].values
+y=y.reshape(len(y),1)
+y.shape
+
+
+
+
+#%%
+
+# +++逻辑回归多了一个激活函数,代价函数稍有变化
+def sigmoid(z):
+    return 1/(1+np.exp(-z)) # 定义了逻辑回归里的sigmoid函数=g
+
+
+#%%
+
+#损失函数,和线性差不多,此处多加了一个正则化,防止过拟合
+def costFunction(X,y,t,lr):
+    hx=sigmoid(X@t)
+    first=y*np.log(hx)
+    second=(1-y)*np.log(1-hx)
+    
+    #此处+L2正则化项,注意j从1开始.
+    reg=np.sum(np.power(t[1:],2))*(lr/(2*len(x)))
+    
+    return -np.sum(first+second)/len(X)+reg
+
+#%%
+
+t=np.zeros((28,1))
+lr=1
+c=costFunction(x,y,t,lr)
+print(c)
+# 给定值开始打印出损失函数的值
+
+#%%
+
+# 梯度下降
+# 对于线性不可分的梯度下降,由于正则化项是从1开始的,所以对于梯度从1开始,则需要加加入正则化项,从0开始和之前不变
+#逻辑回归梯度下降
+def G(X,y,t,alpha,it,lr):
+    costs=[ ] # 记录每一次cost值,方便观测
+    for i in range(it):
+        # 从j=1开始需要添加正则化导数项
+        reg=t[1:]*(lr/len(x))
+        # 由于是从j=1开始,所以需要插入一行使得在梯度下降运算中保持相同的维度,这点和之前给y插入一列有异曲同工之妙
+        reg=np.insert(reg,0,values=0,axis=0)
+        
+        hx=sigmoid(X@t)
+        t=t-(alpha/len(X))*(X.T@(hx-y))-reg
+        # 梯度下降向量化就是上面的公式
+        cost=costFunction(X,y,t,lr)
+        # 每次更新完一次theta值就计算一次代价函数
+        costs.append(cost)
+        # 将每次更新的代价函数的值存入上面的名为costs的数组中
+
+        if i % 1000 == 0:
+            print(cost)
+    return t,costs
+
+#%%
+
+alpha=0.001
+it=20000
+lr=0.001
+# 取0.1,即lr越大,越易欠拟合
+# 取0.001,即lr越小,越易过拟合
+
+#%%
+
+t,costs=G(x,y,t,alpha,it,lr)
+
+#%%
+
+# 再查看一下theat的更新
+t
+
+#%%
+
+# 准确率的预测
+def p(x,theat):
+    prob=sigmoid(x@t)
+    return[1 if x >=0.5 else 0 for x in prob]
+
+
+#%%
+
+y_=np.array(p(x,t))
+y_pre=y_.reshape(len(y),1)
+acc=np.mean(y_pre==y)
+print(acc)
+
+#%%
+
+# 绘制为0的等高线
+x=np.linspace(-1.2,1.2,200)  # 均分数组指令,-1.2~1.2生成200个均匀分布
+xx,yy=np.meshgrid(x,x) # 生成网格函数,即200×200的矩阵
+z=feature_mapping(xx.ravel(),yy.ravel(),6).values
+# 对xx,yy特征进行预设(xx.拉成一条,yy.拉成一条,6阶).矩阵转数组格式
+zz=z@t # 通常所理解的x@t
+zz=zz.reshape(xx.shape)  # zz需要和xx的矩阵维度相匹配,做维度变换
+
+
+# 基础数据散点图
+fig,ax=plt.subplots() # 建立一个图层
+ax.scatter(data[data['a']==0]['1'],data[data['a']==0]['2'],c='b',marker='x',label='y=0')
+ax.scatter(data[data['a']==1]['1'],data[data['a']==1]['2'],c='r',marker='o',label='y=1')
+ax.legend() # 样例
+plt.contour(xx,yy,zz,0) # 绘制等高线函数
+plt.show()
