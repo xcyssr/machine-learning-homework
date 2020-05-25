@@ -1,0 +1,180 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.io as sio
+#字典的每个键值(key=>value)对用冒号(:)分割，
+# 每个对之间用逗号(,)分割，整个字典包括在花括号({})中 
+
+
+
+# matlab格式数据导入
+data=sio.loadmat("ex3data1.mat")
+
+
+
+# 查看数据信息
+data
+
+
+
+# 查看数据格式:为dict字典
+type(data)
+
+
+
+# 获取字典的内容就是获取key值
+data.keys()
+
+
+
+# 取出数据
+x_=data['X']
+y_=data['y']
+
+
+
+# 打印数据查看
+print(x_.shape,y_.shape)
+
+
+
+# 1张图片可视化
+def plot_one(X):  # 定义一个函数
+    pick_1= np.random.randint(5000)  # 随机选取5000中的1张图片
+    image=X[pick_1,:]   # 根据随机数取出图片
+    print(image.shape)
+    
+    fig,ax=plt.subplots(figsize=(1,1)) # 创建画布,指定画布大小
+    ax.imshow(image.reshape(20,20).T,cmap='gray_r') # 打印图片
+    # 可视化随机选取的图片,尺寸设置为20*20像素,白底黑字,T转置为转方向
+    plt.xticks([])  # 去掉x刻度
+    plt.yticks([])  # 去掉y刻度
+
+
+# 可视化图片,此例为一个随机数字
+plot_one(x_)
+
+
+
+# 100张图片可视化
+def plot_100(X):  #定义一个函数
+     pick_100= np.random.choice(len(X),100)
+     # 随机选取数据,长度为chouice(len(X),个数为100)
+     images=X[pick_100,:] # 根据随机数取出图片
+     print(images.shape)  # 打印出图片的矩阵维度
+     
+     fig,ax=plt.subplots(10,10,figsize=(8,8),sharex=True,sharey=True)
+     # 创建一个10行10列的画布,每个大小10×10像素,共享x轴,共享y轴,即让x,y刻度消失
+    
+     for r in range(10): # 10行,0~9
+         for c in range(10): #10列,0~9
+             ax[r,c].imshow(images[10*r+c].reshape(20,20).T,cmap='gray_r')
+             # 每一次图片生成的位置
+     
+     plt.xticks([])  #去掉x轴
+     plt.yticks([])  #去掉y轴
+     
+
+
+
+# 100个数据随机可视化查看
+plot_100(x_)
+
+
+
+
+# +++逻辑回归相对于线性回归多了一个激活函数s函数,代价函数稍有变化
+# 逻辑回归中,可分,不可分,高优化算法该s函数都不变
+def sigmoid(z):
+    return 1/(1+np.exp(-z)) # 定义了逻辑回归里的sigmoid函数=g
+
+
+
+
+# 损失函数,和线性差不多,此处多加了一个正则化,防止过拟合
+# 对于多分类高优化算法,还应当主义theat的传入顺序(t,x,y,lr)
+def costFunction(t,X,y,lr):
+    hx=sigmoid(X@t)
+    
+    first=y*np.log(hx)
+    second=(1-y)*np.log(1-hx)
+  # 此处+L2正则化项,注意j从1开始.
+   
+  # 高优化算法要重新定义  
+    #reg=np.sum(np.power(t[1:],2))*(lr/(2*len(x)))
+    reg=t[1:]@t[1:]*(lr/(2*len(X)))
+  # 高优化算法是一维数组,内积  
+    return -np.sum(first+second)/len(X)+reg 
+
+
+
+# TNC算法中带正则项的梯度向量提取
+def gradient_reg(t,X,y,lr): #梯度向量
+    reg=t[1:]*(lr/len(X))
+    reg=np.insert(reg,0,values=0,axis=0)
+    
+    first=(X.T@(sigmoid(X@t)-y))/len(X)
+    
+    return first+reg
+
+
+
+X=np.insert(x_,0,values=1,axis=1) # 插入一列
+X.shape
+# (5000,401)
+
+
+
+y=y_.flatten() # 去掉一列
+y.shape
+# (5000,)
+
+
+# TNC优化算法
+from scipy.optimize import minimize
+
+def one_for_all(X,y,lr,k):
+    n=X.shape[1]
+    
+    t_all=np.zeros((k,n))
+    
+    for i in range(1,k+1):
+        t_i=np.zeros(n,)
+        
+        res=minimize(fun=costFunction,
+                x0=t_i,
+                args=(X,y==i,lr),
+                method='TNC',
+                jac=gradient_reg) # theat的优化更新
+        t_all[i-1,:]=res.x
+    return t_all
+
+
+
+lr=1
+k=10
+
+
+
+f=one_for_all(X,y,lr,k)
+
+
+
+f
+
+
+
+def p(X,f):
+    h=sigmoid(X@f.T) # (5000,401)(10,401)=(5000,10)
+    h_max=np.argmax(h,axis=1)
+    return h_max+1
+
+
+
+y_pred=p(X,f)
+
+
+
+acc=np.mean(y_pred == y)
+
+
+acc
