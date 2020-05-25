@@ -1,5 +1,3 @@
-#%%
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,15 +5,9 @@ import matplotlib.pyplot as plt
 data=pd.read_csv("E:\pythonrealize\ex1data1.txt",names=['population','profit'])
 data.head() #查看前5个
 
-#%%
-
 data.tail() #查看后5个
 
-#%%
-
 data.describe() #一些列数据
-
-#%%
 
 data.info() # 数据细节信息
 
@@ -25,38 +17,23 @@ data.plot.scatter('population','profit',label="population",c='b',s=10)
 plt.show()
 #绘制散点图,曲线用plot  
 
-#%%
-
 data.insert(0,'ones',1) # 插入一列 1 ,+b
 data.head()
-
-#%%
 
 X=data.iloc[:,0:-1] # 从矩阵切出x
 X.head()
 
-#%%
-
 y=data.iloc[:,-1] # 从矩阵切出y
 y.head()  
-
-#%%
 
 X=X.values # 对x向量进行格式转换,返回值为列表
 X.shape
 
-#%%
-
 y=y.values # 对y向量进行格式转化,返回值为列表
 y.shape
 
-#%%
-
 y=y.reshape(97,1) # 对y进行向量补充,
 y.shape
-
-
-#%%
 
 # 无正则化损失函数
 def costFunction(X,y,theta):
@@ -65,13 +42,10 @@ def costFunction(X,y,theta):
 theta=np.zeros((2,1))
 theta.shape
 
-#%% 无正则化代价函数
+# 无正则化代价函数
 
 J=costFunction(X,y,theta)
 print(J)
-
-
-#%%
 
 # 梯度下降最基本算法
 def G(X,y,theta,alpha,it):
@@ -89,14 +63,10 @@ def G(X,y,theta,alpha,it):
             print(cost)
     return theta,costs
 
-#%%
-
 alpha = 0.02
 it = 1500
 theta,costs=G(X,y,theta,alpha,it)
 
-
-#%%
 
 fig,ax=plt.subplots() 
 ax.plot(np.arange(it),costs,'b') 
@@ -106,7 +76,6 @@ plt.show()
 # np.arange生成一个等于迭代次数的列表,因为costs为一个列表,caler='b'
 # 横纵坐标标题,以及title
 
-#%%
 
 x=np.linspace(y.min(),y.max(),100)  # y.min()=2.6807 y.max()=24.147   # x轴坐标从2.6807~24.147分100等份
 ft= theta[0,0]+theta[1,0]*x  # ft即更新的theta值,现在的theat为一个2×1的矩阵,第一个元素为b,第二个theta为k   # 目标绘制全部图形,1.散点图,2.曲线图
