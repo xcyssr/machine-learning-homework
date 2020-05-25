@@ -1,0 +1,81 @@
+#%%
+
+# 载入第三方库
+import numpy as np
+import scipy.io as sio
+import matplotlib.pyplot as plt
+from skimage import io
+
+#%%
+
+data2=sio.loadmat('bird_small.mat')
+data2.keys()
+
+#%%
+
+a=data2['A']
+a.shape
+# 原式图片每一个像素点0-255,每一个像素点256种取值
+# 1个像素点就要8个bit进行存储
+# 类别数设置为16,聚类完后有16种选择
+
+#%%
+
+image=io.imread('bird_small.png')  
+plt.imshow(image)
+
+#%%
+
+# 将数据按随机初始化的点进行一次分类
+def find_centroids(x,centros):
+    idx=[]
+    for i in range(len(x)):
+        dist =np.linalg.norm((x[i]-centros),axis=1)
+        id_i=np.argmin(dist)
+        idx.append(id_i)
+    return np.array(idx)
+
+#%%
+
+# 计算所有类的均值,作为新的中心点
+def compute_centros(x,idx,k):
+    centros=[]
+    for i in range(k):
+        centros_i=np.mean(x[idx==i],axis=0)
+        centros.append(centros_i)
+    return np.array(centros)
+
+#%%
+
+def run_kemans(x,centros,iters):
+    k=len(centros)
+    centros_all=[]
+    centros_all.append(centros)
+    centros_i=centros
+    for i in range(iters):
+        idx=find_centroids(x,centros_i)
+        centros_i=compute_centros(x,idx,k)
+        centros_all.append(centros_i)
+    return idx,np.array(centros_all)
+
+#%%
+
+def init_centros(x,k):
+    index=np.random.choice(len(x),k)
+    return  x[index]
+
+#%%
+
+a=a/255
+a=a.reshape(-1,3)
+k=16
+
+#%%
+
+idx,centros_all=run_kemans(a,init_centros(a,k=16),iters=20)
+centros=centros_all[-1]
+im=np.zeros(a.shape)
+for i in range(k):
+    im[idx==i]=centros[i]
+im=im.reshape(128,128,3)
+plt.imshow(im)
