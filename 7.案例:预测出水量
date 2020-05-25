@@ -1,0 +1,259 @@
+#%% 
+
+# 1.第三方库
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.io as sio
+from scipy.optimize import minimize
+from scipy.io import loadmat
+
+#%% 
+
+# 2.导入数据
+data=sio.loadmat('ex5data1.mat')
+data.keys()
+
+#%% 
+
+# 2.1导出训练集
+xt=data['X']
+yt=data['y']
+xt.shape,yt.shape
+
+#%% 
+
+# 2.2导出验证集
+xv=data['Xval']
+yv=data['yval']
+xv.shape,yv.shape
+
+#%% 
+
+# 2.3导出测试集
+xte=data['Xtest']
+yte=data['ytest']
+xte.shape,yte.shape
+
+#%% 
+
+# 2.5处理数据+b,即添加一列1,给每一个分集的x都添加了一列1
+xt=np.insert(xt,0,1,axis=1) # xt,0位置,1,列方向
+xv=np.insert(xv,0,1,axis=1)
+xte=np.insert(xte,0,1,axis=1)
+
+#%%  
+
+# 3.1对训练集可视化---线性回归
+def plot_data():
+    fig,ax=plt.subplots() # 创建图层
+    ax.scatter(xt[:,1],yt) # 散点图用scatter,曲线用plot
+    ax.set(xlabel='water level(x)',
+           ylabel='water out')
+
+#%%
+
+plot_data()
+
+#%%  
+
+# 4.带正则化项的代价函数---线性回归
+def reg_cost(t,X,y,lr):
+    cost=np.sum(np.power((X@t-y.flatten()),2)) # y.flattten降维,匹配xt@t
+    reg=t[1:] @ t[1:] * lr  #正则化项向量化公式
+    return (cost+reg)/(2*len(X))
+
+#%%
+
+t=np.ones(xt.shape[1])
+lr=1
+reg_cost(t,xt,yt,lr)
+
+#%% 
+
+# 5.带正则化项的向量化梯度下降公式
+def reg_G(t,X,y,lr):
+    grad=(X@t - y.flatten())@ X  #无正则化的梯度下降
+    reg=lr * t                   #正则化项
+    reg[0]=0                     #正则化项从1开始循环
+    return (grad+reg)/(len(X))
+
+#%%
+
+reg_G(t,xt,yt,lr)
+
+#%% 
+
+# 6.在训练集上进行拟合训练,用的是训练集,和TNC高级优化算法
+def train(X,y,lr):
+    t=np.ones(X.shape[1])
+    res=minimize(fun=reg_cost,
+                 x0=t,
+                 args=(X,y,lr),
+                 method='TNC',
+                 jac=reg_G)
+    return res.x              # 该高级算法的固定返回值
+
+#%%
+
+tf=train(xt,yt,lr=0)
+
+#%%
+
+tf
+
+#%% 可视化
+
+plot_data()
+plt.plot(xt[:,1],xt@tf,c='r')
+plt.show()
+
+#%% 7.训练集和验证集上的拟合对比
+
+def learning(xt,yt,xv,yv,lr):
+    x=range(1,len(xt)+1) # 训练集长度,数据从0开始,函数从1开始,所以+1
+    training_cost=[]        # 存放训练集拟合后的数据
+    cv_cost=[]           # 存放验证集拟合后的数据
+    for i in x:
+        res=train(xt[:i,:],yt[:i,:],lr)     # 取出训练集的拟合结果
+        
+        training_cost_i=reg_cost(res,xt[:i,:],yt[:i,:],lr) # 用更新参数拟合训练集,原训练集xt=21,xv=12,为了匹配,所以选择12组数据
+        cv_cost_i=reg_cost(res,xv,yv,lr)    # 用更新参数拟合验证集
+        
+        training_cost.append(training_cost_i)  # 将训练集的拟合结果存入上面的列表
+        cv_cost.append(cv_cost_i)           # 将验证集的拟合结果存入上面的列表
+    
+    plt.plot(x,training_cost,label='train',c='r')  # 可视化函数
+    plt.plot(x,cv_cost,label='cv',c='b')
+    plt.legend()        #调用plot中的label函数
+    plt.xlabel('number of training examples')
+    plt.ylabel('error')
+    plt.show()
+
+#%%
+
+learning(xt,yt,xv,yv,lr=0)
+# 可视化后判断,为高偏差
+# 高方差                             高偏差
+# 1.采集更多样本数据                  1.引入更多相关特征
+# 2.减少特征数量,去除非主要特征       2.特征映射,采用构造多项式
+# 3.增加正则化参数值 lr               3.减小正则化参数 lr
+
+
+#%% 
+
+# 8.特征映射函数---构造多项式特征,进行多项式回归.
+def more_feature(X,power):
+    for i in range(2,power+1): # 从2次幂开始取
+        X=np.insert(X,X.shape[1],np.power(X[:,1],i),axis=1) # X.shape[1]:X的最后一列
+        return X               # X:(1,X,X²......power)
+
+#%% 
+
+# 9.1 获取 均值 和 方差 函数:为调用做准备
+#     由于加入了幂次项,可能出现值不匹配情况
+#     所以规定使用训练集的 均值 和 方差 进行归一化
+def get_m_s(X):
+    means = np.mean(X,axis=0)    # np获取均值的函数,axis=0,索引按行获取,=1为按列
+    stds = np.std(X,axis=0)      # np获取方差函数,索引按行获取,=1为按列
+    return means,stds
+
+#%% 
+
+# 9.2 特征归一化---主函数
+def feature_ok(X,means,stds):
+    X[:,1:]=(X[:,1:]- means[1:])/stds[1:]
+    return X
+    # 由于第一列不是次方项,不用做归一化,所以不包括第一列
+    #上式全程在照顾值的可运算性
+
+#%% 
+
+# 9.3 依次对训练集,验证集,测试集做多项式处理---特征映射
+power = 6  
+xtx=more_feature(xt,power)     # 对训练集使用特征映射
+xvx=more_feature(xv,power)     # 对验证集使用特征映射
+xtex=more_feature(xte,power)   # 对测试集使用特征映射
+
+#%% 
+
+# 9.4 求 训练集 的 均值 和 方差
+train_means,train_stds=get_m_s(xtx)
+
+#%%
+
+# 9.5 特征归一化
+xtn=feature_ok(xtx,train_means,train_stds)
+xvn=feature_ok(xvx,train_means,train_stds)
+xten=feature_ok(xtex,train_means,train_stds)
+# 对特征映射后的 训练集 归一化
+# 对特征映射后的 验证集 归一化
+# 对特征映射后的 测试集 归一化
+
+#%% 
+
+# 9.6 特征映射后的 训练集 求高级优化算法拟合
+t_f=train(xtn,yt,lr=0)
+
+#%%
+
+# 9.7 final绘图
+def plot_f():
+    plot_data()                 # 绘制散点图
+    
+    x=np.linspace(-60,60,100)   # 绘制点(-60~60,100个点)
+    xx=x.reshape(100,1)          # 将l转换成矩阵格式(100,1) 
+    xx=np.insert(xx,0,1,axis=1)  # 对l矩阵插入 一列 向量,值为1(100,2)
+   
+    xx=more_feature(xx,power)   # 对矩阵l同样进行 特征映射
+    xx1=feature_ok(xx,train_means,train_stds)  # 对特征映射后的矩阵l_归一化
+    
+    plt.plot(x,xx1@t_f,'r--')   # 线性回归梯度下降后的(x轴,y轴)
+
+#%%
+
+plot_f()
+
+#%%
+
+learning(xtn,yt,xvn,yv,lr=0)
+
+#%%
+
+learning(xtn,yt,xvn,yv,lr=1)
+
+#%%
+
+learning(xtn,yt,xvn,yv,lr=100)
+
+#%% 
+
+# 10.lr的选取
+lrs=[0,0.001,0.003,0.01,0.03,0.1,0.3,1,3,10]
+training_cost=[]
+cv_cost=[]
+for lr in lrs:
+    res=train(xtx,yt,lr)
+   
+    tc=reg_cost(res,xtn,yt,lr=0)
+    cv=reg_cost(res,xvn,yv,lr=0)
+    
+    training_cost.append(tc)
+    cv_cost.append(cv)
+
+#%%
+
+plt.plot(lrs,training_cost,label='traing cost')
+plt.plot(lrs,cv_cost,label='cv cost')
+plt.legend()
+plt.show()
+
+#%%
+
+lrs[np.argmin(cv_cost)]
+
+#%%
+
+# 11.测试集应用
+res=train(xtn,yt,lr=1)
+test_cost=reg_cost(res,xten,yte,lr=0)
+print(test_cost)
