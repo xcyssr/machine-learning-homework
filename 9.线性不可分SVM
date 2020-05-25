@@ -8,8 +8,8 @@ from sklearn.svm import SVC
 
 #%%
 
-# 2.读取数据
-data=sio.loadmat('ex6data1.mat')
+# 2.导入数据
+data=sio.loadmat('ex6data2.mat')
 data.keys()
 
 #%%
@@ -21,7 +21,7 @@ x.shape,y.shape
 
 #%%
 
-# 4. 绘图
+# 4.绘制图像
 def p_data():
     plt.scatter(x[:,0],x[:,1],c=y.flatten(),cmap='jet')
     plt.xlabel('x1')
@@ -33,29 +33,23 @@ p_data()
 
 #%%
 
-# 5.一种SVC分类器---可以放在开头
-from sklearn.svm import SVC
-
-#%%
-
-# 5.1 分类器
-svc1=SVC(C=1.0,kernel='linear')
+# 5.用 scipy.io 实现高斯核函数
+# C越大,越拟合
+# gamma越小,模型复杂度越低,欠拟合,gamma越大,模型复杂度越高,过拟合
+svc1=SVC(C=1,kernel='rbf',gamma=50)
 svc1.fit(x,y.flatten())
 
 #%%
 
-svc1.predict(x)
-
-#%%
-
+# 5.1训练集得分
 svc1.score(x,y.flatten())
 
 #%%
 
-# 6.绘图
+# 6.当gamma=1时的图像
 def p_boundary(model):
-    x_min,x_max=-0.5,4.5
-    y_min,y_max=1.3,5
+    x_min,x_max=0,1
+    y_min,y_max=0.25,1.05
     xx,yy=np.meshgrid(np.linspace(x_min,x_max,500),np.linspace(y_min,y_max,500))
     z=model.predict(np.c_[xx.flatten(),yy.flatten()])
     zz=z.reshape(xx.shape)
@@ -66,20 +60,3 @@ def p_boundary(model):
 p_boundary(svc1)
 p_data()
 
-#%%
-
-svc100=SVC(C=100,kernel='linear')
-svc100.fit(x,y.flatten())
-
-#%%
-
-svc100.predict(x)
-
-#%%
-
-svc100.score(x,y.flatten())
-
-#%%
-
-p_boundary(svc100)
-p_data()
