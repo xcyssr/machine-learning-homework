@@ -1,11 +1,7 @@
 吴恩达-机器学习-homework
 ---------------------------------------------
- 1.一元线性回归  
- ![image](https://github.com/xcyssr/machine-learning-homework/blob/master/images/1.jpg)  
-  
+ 1.一元线性回归    
  2.逻辑回归线性可分  
- 
-   
  3.逻辑回归线性不可分/特征映射/等高线绘图  
  4.逻辑回归多分类/图片可视化/TNC算法  
  5.神经网络多分类/升降维度  
